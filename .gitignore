@@ -1,0 +1,10 @@
+# Python / Django
+venv/
+__pycache__/
+*.py[cod]
+db.sqlite3
+# No subir los archivos que los usuarios cargan (PDFs de cédulas)
+media/
+
+# IDEs
+.vscode/#
