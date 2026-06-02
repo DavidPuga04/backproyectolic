@@ -31,6 +31,14 @@ class Zona(models.Model):
 
     nombre = models.CharField(max_length=100)
 
+    latitud = models.FloatField(
+        default=-0.1807
+    )
+
+    longitud = models.FloatField(
+        default=-78.4678
+    )
+
     def __str__(self):
         return self.nombre
 
