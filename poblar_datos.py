@@ -137,12 +137,12 @@ dias = range(5)  # Lunes-Viernes
 # Base de afluencia por sucursal
 bases = {
     s1: 40,  # ANT Occidental
-    s2: 70,  # Tumbaco
-    s3: 60,  # Plataforma Sur
-    s4: 55,  # Plataforma Norte
-    s5: 35,  # Rumiñahui
-    s6: 20,  # Cayambe
-    s7: 15,  # Machachi
+    s2: 35,  # Tumbaco
+    s3: 45,  # Plataforma Sur
+    s4: 38,  # Plataforma Norte
+    s5: 42,  # Rumiñahui
+    s6: 30,  # Cayambe
+    s7: 32,  # Machachi
 }
 
 for sucursal, base in bases.items():
@@ -172,7 +172,7 @@ for sucursal, base in bases.items():
 
             espera = max(5, espera)
 
-            AfluenciaHistorica.objects.get_or_create(
+            AfluenciaHistorica.objects.update_or_create(
                 sucursal=sucursal,
                 dia_semana=dia,
                 hora=hora,
