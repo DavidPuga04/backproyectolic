@@ -4,11 +4,12 @@ from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
 from .models import TramiteLicencia, Sucursal, AfluenciaHistorica, Zona
 from .serializers import TramiteSerializer, ZonaSerializer
+from django.db.models import Avg
 import math
 
 
 # ==================================
-# DISTANCIA ENTRE DOS PUNTOS (KM) (Fòrmula de Haversine)
+# DISTANCIA ENTRE DOS PUNTOS (KM)
 # ==================================
 
 def distancia_km(lat1, lon1, lat2, lon2):
@@ -227,6 +228,68 @@ class TramiteViewSet(viewsets.ModelViewSet):
                 "ahorro_estimado": ahorro
 
             })
+
+        except Exception as e:
+
+            return Response(
+                {"error": str(e)},
+                status=500
+            )
+
+    # ============================
+    # TOP 3 SUCURSALES CON MAYOR AFLUENCIA
+    # ============================
+
+    @action(detail=False, methods=['get'])
+    def top_sucursales_afluencia(self, request):
+
+        try:
+
+            dia_actual = int(
+                request.query_params.get('dia', 0)
+            )
+
+            hora_actual = int(
+                request.query_params.get('hora', 10)
+            )
+
+            top = (
+                AfluenciaHistorica.objects
+                .filter(
+                    dia_semana=dia_actual,
+                    hora=hora_actual
+                )
+                .values('sucursal__nombre')
+                .annotate(
+                    promedio=Avg('espera_promedio_minutos')
+                )
+                .order_by('-promedio')[:3]
+            )
+
+            data = []
+
+            for item in top:
+
+                estado = (
+                    "ALTA"
+                    if item['promedio'] >= 40
+                    else "BAJA"
+                )
+
+                data.append({
+
+                    "sucursal": item['sucursal__nombre'],
+
+                    "espera_promedio": round(
+                        item['promedio'],
+                        2
+                    ),
+
+                    "estado": estado
+
+                })
+
+            return Response(data)
 
         except Exception as e:
 
