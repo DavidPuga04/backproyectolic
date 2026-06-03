@@ -8,7 +8,7 @@ import math
 
 
 # ==================================
-# DISTANCIA ENTRE DOS PUNTOS (KM)
+# DISTANCIA ENTRE DOS PUNTOS (KM) (Fòrmula de Haversine)
 # ==================================
 
 def distancia_km(lat1, lon1, lat2, lon2):

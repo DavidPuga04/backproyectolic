@@ -1,3 +1,9 @@
 from django.contrib import admin
+from.models import Sucursal, Zona, TramiteLicencia, AfluenciaHistorica
 
-# Register your models here.
+admin.site.register(Sucursal)
+admin.site.register(Zona)
+admin.site.register(TramiteLicencia)
+admin.site.register(AfluenciaHistorica)
+
+
