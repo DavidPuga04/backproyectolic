@@ -2,39 +2,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
-from .models import TramiteLicencia, Sucursal, AfluenciaHistorica, Zona
+
+from .models import TramiteLicencia, AfluenciaHistorica, Zona
 from .serializers import TramiteSerializer, ZonaSerializer
+from .services.recomendacion_service import RecomendacionService
+from .services.monitoreo_service import MonitoreoService
 from django.db.models import Avg
-import math
-
-
-# ==================================
-# DISTANCIA ENTRE DOS PUNTOS (KM)
-# ==================================
-
-def distancia_km(lat1, lon1, lat2, lon2):
-
-    R = 6371
-
-    dLat = math.radians(lat2 - lat1)
-    dLon = math.radians(lon2 - lon1)
-
-    a = (
-        math.sin(dLat / 2) ** 2
-        +
-        math.cos(math.radians(lat1))
-        *
-        math.cos(math.radians(lat2))
-        *
-        math.sin(dLon / 2) ** 2
-    )
-
-    c = 2 * math.atan2(
-        math.sqrt(a),
-        math.sqrt(1 - a)
-    )
-
-    return R * c
 
 
 class TramiteViewSet(viewsets.ModelViewSet):
@@ -67,35 +40,14 @@ class TramiteViewSet(viewsets.ModelViewSet):
         return Response({"ok": True})
 
     # ============================
-    # MONITOREO
+    # MONITOREO (REFACTORIZADO A SERVICE)
     # ============================
 
     @action(detail=False, methods=['get'])
     def listar_monitoreo(self, request):
 
-        sucursales = Sucursal.objects.all()
-
-        data = []
-
-        for s in sucursales:
-
-            historico = AfluenciaHistorica.objects.filter(
-                sucursal=s,
-                dia_semana=0,
-                hora=10
-            ).first()
-
-            espera = (
-                historico.espera_promedio_minutos
-                if historico
-                else 45
-            )
-
-            data.append({
-                "nombre": s.nombre,
-                "espera": f"{espera} min",
-                "estado": "BAJA" if espera < 40 else "ALTA"
-            })
+        service = MonitoreoService()
+        data = service.obtener_monitoreo()
 
         return Response(data)
 
@@ -116,9 +68,6 @@ class TramiteViewSet(viewsets.ModelViewSet):
                     "error": "Debe seleccionar una zona"
                 }, status=400)
 
-            user_lat = tramite.zona.latitud
-            user_lon = tramite.zona.longitud
-
             dia_actual = int(
                 request.query_params.get('dia', 0)
             )
@@ -127,107 +76,15 @@ class TramiteViewSet(viewsets.ModelViewSet):
                 request.query_params.get('hora', 10)
             )
 
-            sucursales = Sucursal.objects.all()
+            service = RecomendacionService()
 
-            if not sucursales.exists():
-
-                return Response({
-                    "sucursal": "Sin sedes disponibles",
-                    "tiempo_espera": 0,
-                    "distancia_km": 0,
-                    "tiempo_total": 0,
-                    "ahorro_estimado": 0
-                })
-
-            resultados = []
-
-            for s in sucursales:
-
-                if s.latitud is None or s.longitud is None:
-                    continue
-
-                distancia = distancia_km(
-                    user_lat,
-                    user_lon,
-                    float(s.latitud),
-                    float(s.longitud)
-                )
-
-                historico = AfluenciaHistorica.objects.filter(
-                    sucursal=s,
-                    dia_semana=dia_actual,
-                    hora=hora_actual
-                ).first()
-
-                espera = (
-                    historico.espera_promedio_minutos
-                    if historico
-                    else 45
-                )
-
-                # Aproximación:
-                # 1 km ≈ 2 min de viaje
-
-                tiempo_viaje = distancia * 2
-
-                score = tiempo_viaje + espera
-
-                resultados.append({
-
-                    "nombre": s.nombre,
-
-                    "espera": espera,
-
-                    "distancia": distancia,
-
-                    "tiempo_viaje": tiempo_viaje,
-
-                    "score": score
-
-                })
-
-            if not resultados:
-
-                return Response({
-                    "sucursal": "Sin datos suficientes",
-                    "tiempo_espera": 0,
-                    "distancia_km": 0,
-                    "tiempo_total": 0,
-                    "ahorro_estimado": 0
-                })
-
-            mejor = min(
-                resultados,
-                key=lambda x: x["score"]
+            resultado = service.recomendar(
+                tramite,
+                dia_actual,
+                hora_actual
             )
 
-            peor = max(
-                resultados,
-                key=lambda x: x["score"]
-            )
-
-            ahorro = round(
-                peor["score"] - mejor["score"]
-            )
-
-            return Response({
-
-                "sucursal": mejor["nombre"],
-
-                "tiempo_espera": mejor["espera"],
-
-                "distancia_km": round(
-                    mejor["distancia"],
-                    2
-                ),
-
-                "tiempo_total": round(
-                    mejor["score"]
-                ),
-
-                "ahorro_estimado": ahorro
-
-            })
+            return Response(resultado)
 
         except Exception as e:
 
@@ -279,12 +136,7 @@ class TramiteViewSet(viewsets.ModelViewSet):
                 data.append({
 
                     "sucursal": item['sucursal__nombre'],
-
-                    "espera_promedio": round(
-                        item['promedio'],
-                        2
-                    ),
-
+                    "espera_promedio": round(item['promedio'], 2),
                     "estado": estado
 
                 })
