@@ -1,10 +1,23 @@
 # Python / Django
 venv/
 __pycache__/
+**/__pycache__/
 *.py[cod]
 db.sqlite3
-# No subir los archivos que los usuarios cargan (PDFs de cédulas)
+
+# Variables de entorno
+.env
+.env.*
+
+# Media uploads
 media/
 
+# Logs
+*.log
+
 # IDEs
-.vscode/#
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
